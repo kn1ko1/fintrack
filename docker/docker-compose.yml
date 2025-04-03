@@ -1,0 +1,66 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:13
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: fintrack
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - fintrack-network
+
+  python_api:
+    build: 
+      context: ./backend/python_api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/fintrack
+      - DEBUG=True
+    volumes:
+      - ./backend/python_api:/app
+    networks:
+      - fintrack-network
+
+  go_auth:
+    build:
+      context: ./backend/go_services
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+    environment:
+      - DB_CONNECTION=postgresql://postgres:postgres@postgres:5432/fintrack
+    volumes:
+      - ./backend/go_services:/app
+    networks:
+      - fintrack-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - fintrack-network
+
+networks:
+  fintrack-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
